@@ -1,1 +1,2 @@
-config.js $ git rm config.js rm config.js $ git commit -m Start ignoring config.js
+config.js
+static/js/config.js
