@@ -38,8 +38,8 @@ var satellitemap = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/serv
 
 // generate map
 var myMap = L.map("mapid", {
-    center: [37.0902, -95.7129],
-    zoom: 4
+    center: [37.0902, 0],
+    zoom: 2
 });
 
 d3.json(platesURL, data => {
@@ -62,7 +62,7 @@ function getEarthquakeData(quakesURL, plateLayer) {
         let features = quakeData.features;
         let quakes = [];
 
-        const _sizeRef = 18000; // scale the bubble size up to help with magnitude distinction
+        const _sizeRef = 20000; // scale the bubble size up to help with magnitude distinction
         
         // iterate through feature and store it as a circle in the quakes array
         for (let feature of features) {
