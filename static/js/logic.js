@@ -1,6 +1,6 @@
 // Earthquake API endpoint URL
-var quakesURL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson";
-// var platesURL = "static/js/PB2002_boundaries.json"
+var quakesURL = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_month.geojson";
+var platesURL = "/static/js/PB2002_boundaries.json"
 
 // Function - returns color based on provided depth
 function getColor(depth) {
@@ -39,66 +39,76 @@ var satellitemap = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/serv
 // generate map
 var myMap = L.map("mapid", {
     center: [37.0902, -95.7129],
-    zoom: 4,
-    layers: [streetmap]
+    zoom: 4
+});
+
+d3.json(platesURL, data => {
+  // Once we get a response, use data.features to create a plate layer
+  var plateLayer = L.geoJSON(data.features, {
+    style: {
+        color: "yellow",
+        weight: 2
+    }
+  });
+
+  // Send tectonic layer down the line to the earthquakes function
+  getEarthquakeData(quakesURL, plateLayer);
 });
 
 // Get earthquake data
-d3.json(quakesURL, quakeData => {
+function getEarthquakeData(quakesURL, plateLayer) {
+    d3.json(quakesURL, (error, quakeData) => {
+        if (error) throw error;
+        let features = quakeData.features;
+        let quakes = [];
 
-    // let plateLayer = getPlateJSON();
-    // console.log(plateLayer)
-    let features = quakeData.features;
-    let quakes = [];
-
-    const _sizeRef = 20000; // scale the bubble size up to help with magnitude distinction
-    
-    // iterate through feature and store it as a circle in the quakes array
-    for (let feature of features) {
-        let lat = feature.geometry.coordinates[1],
-            long = feature.geometry.coordinates[0],
-            depth = feature.geometry.coordinates[2],
-            mag = feature.properties.mag;
+        const _sizeRef = 18000; // scale the bubble size up to help with magnitude distinction
         
-        quakes.push(
-            L.circle([lat, long], {
-                color: "black",
-                fillColor: getColor(depth),
-                weight: 1,
-                fillOpacity: 1,
-                radius: mag * _sizeRef
-            }).bindPopup(`<h3>${feature.properties.place}</h3><hr><p>${new Date(feature.properties.time)}</p>`)
-        );
-    }
-    quakeLayer = L.layerGroup(quakes)
+        // iterate through feature and store it as a circle in the quakes array
+        for (let feature of features) {
+            let lat = feature.geometry.coordinates[1],
+                long = feature.geometry.coordinates[0],
+                depth = feature.geometry.coordinates[2],
+                mag = feature.properties.mag;
+            
+            quakes.push(
+                L.circle([lat, long], {
+                    color: "black",
+                    fillColor: getColor(depth),
+                    weight: 1,
+                    fillOpacity: 1,
+                    radius: mag * _sizeRef
+                }).bindPopup(`<h3>${feature.properties.place}</h3><hr><p>${new Date(feature.properties.time)}</p>`)
+            );
+        }
+        let quakeLayer = L.layerGroup(quakes)
 
-    // create legend
-    var legend = L.control({ position: "bottomright "});
-    legend.onAdd = function() {
-        let div = L.DomUtil.create("div", "legend");
-            // labels = [],
-            // categories = [
-            //     {"title": "< 10", "value": 0},
-            //     {"title": "10-30", "value": 10},
-            //     {"title": "30-50", "value": 30},
-            //     {"title": "50-70", "value": 50},
-            //     {"title": "70-90", "value": 70},
-            //     {"title": "90+", "value": 90}
-            // ];
-        div.innerHTML = `<h1>Earthquake Depth</h1>`;
-        // categories.forEach((cat, i) => labels.push(`<i class="circle" style="background-color: ${getColor(categories[i].value)};"></i>${categories[i].title}`));
-        // div.innerHTML += `<div>${labels.join("")}</div>`;
-        return div;
-    };
-    console.log(legend);
-    // legend.addTo(myMap);
+        // create legend
+        let legend = L.control({ position: "bottomright"});
+        legend.onAdd = function() {
+            let div = L.DomUtil.create("div", "legend");
+                labels = [],
+                categories = [
+                    {"title": "< 10", "value": 0},
+                    {"title": "10-30", "value": 10},
+                    {"title": "30-50", "value": 30},
+                    {"title": "50-70", "value": 50},
+                    {"title": "70-90", "value": 70},
+                    {"title": "90+", "value": 90}
+                ];
+            div.innerHTML = `<h4 class="mb=0">Earthquake Depth</h4><h6 class="my-0">(km below mean sea-level)</h6>`;
+            categories.forEach((cat, i) => labels.push(`<i class="circle" style="background-color: ${getColor(categories[i].value)};"></i><span>${categories[i].title}</span><br>`));
+            div.innerHTML += `<div>${labels.join("")}</div>`;
+            return div;
+        };
 
-    // Send earthquake layer to the createMap function
-    createMap(quakeLayer);
-});
+        // Send earthquake and plate layer and legend to the createMap function
+        createMap(quakeLayer, plateLayer, legend);
+    });
+};
 
 // Function - generate map based on provided layer
-function createMap(quakes, plates) {
+function createMap(quakeLayer, plateLayer, legend) {
 
     // baseMaps object to hold our base layers
     var baseMaps = {
@@ -109,10 +119,14 @@ function createMap(quakes, plates) {
 
     // overlayMaps object to hold our base layers
     var overlayMaps = {
-        "Earthquakes": quakes
-        // "Tectonic Plates": plates
+        "Earthquakes": quakeLayer,
+        "Tectonic Plates": plateLayer
     };
 
-    // layer control
+    // layer control and default layers
     L.control.layers(baseMaps, overlayMaps, { collapsed: false}).addTo(myMap);
+    legend.addTo(myMap);
+    plateLayer.addTo(myMap);
+    quakeLayer.addTo(myMap);
+    satellitemap.addTo(myMap);
 }
